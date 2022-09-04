@@ -93,8 +93,9 @@ void FoxDelayAudioProcessor::changeProgramName (int index, const juce::String& n
 //==============================================================================
 void FoxDelayAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    auto delayBufferSize = sampleRate * 2;
+    auto delayBufferSize = sampleRate * 2; // 2 seconds
     delayBuffer.setSize(getTotalNumOutputChannels(), (int)delayBufferSize);
+    delayBuffer.clear();
 }
 
 void FoxDelayAudioProcessor::releaseResources()
@@ -179,24 +180,23 @@ void FoxDelayAudioProcessor::applyDelayBuffer(AudioBuffer<float>& buffer, int ch
     auto bufferSize = buffer.getNumSamples();
     auto delayBufferSize = delayBuffer.getNumSamples();
     
-    int delayLengthInSamples = getSampleRate() / 2;
+    int delayLengthInSamples = getSampleRate() * delayTimeInSeconds;
     auto readPosition = writePosition - delayLengthInSamples;
     if (readPosition < 0)
     {
         readPosition += delayBufferSize;
     }
 
-    float delayGain = 0.2f;
     if(readPosition + bufferSize < delayBufferSize)
     {
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), bufferSize, delayGain, delayGain);
+        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), bufferSize, feedbackLevel, feedbackLevel);
     }
     else
     {
         auto delayBufferEndSize = delayBufferSize - readPosition;
         auto delayBufferStartSize = bufferSize - delayBufferEndSize;
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), delayBufferEndSize, delayGain, delayGain);
-        buffer.addFromWithRamp(channel, delayBufferEndSize, delayBuffer.getReadPointer(channel, 0), delayBufferStartSize, delayGain, delayGain);
+        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), delayBufferEndSize, feedbackLevel, feedbackLevel);
+        buffer.addFromWithRamp(channel, delayBufferEndSize, delayBuffer.getReadPointer(channel, 0), delayBufferStartSize, feedbackLevel, feedbackLevel);
     }
 }
 
