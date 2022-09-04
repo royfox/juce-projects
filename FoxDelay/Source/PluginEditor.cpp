@@ -18,15 +18,15 @@ FoxDelayAudioProcessorEditor::FoxDelayAudioProcessorEditor (FoxDelayAudioProcess
     delayTimeSlider.setRange(0.01, 2.0f, 0.01f);
     feedbackLevelSlider.setRange(0.0f, 100.f, 1.0f);
     
-    mixLevelSlider.setValue(50.0f);
-    delayTimeSlider.setValue(50.0f);
-    feedbackLevelSlider.setValue(0.5f);
+    mixLevelSlider.setValue(20.0f);
+    delayTimeSlider.setValue(0.5f);
+    feedbackLevelSlider.setValue(30.f);
     
     setUpSlider(mixLevelSlider, "%");
     setUpSlider(delayTimeSlider, "s");
     setUpSlider(feedbackLevelSlider, "%");
     
-    setUpLabel(mixLevelLabel, mixLevelSlider, "Mix");
+    setUpLabel(mixLevelLabel, mixLevelSlider, "Wet Level");
     setUpLabel(delayTimeLabel, delayTimeSlider, "Delay Time");
     setUpLabel(feedbackLevelLabel, feedbackLevelSlider, "Feedback");
     

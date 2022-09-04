@@ -55,7 +55,7 @@ public:
     
     float mixLevel { 50.0 };
     float delayTimeInSeconds { 0.5 };
-    float feedbackLevel { 0.5 };
+    float feedbackLevel { 0.3 };
     
     
 

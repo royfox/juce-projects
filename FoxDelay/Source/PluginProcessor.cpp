@@ -143,13 +143,9 @@ void FoxDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
-        // Copy input signal to delay buffer
         fillDelayBuffer(buffer, channel);
-        // apply the delayed information to create the delay effect
         applyDelayBuffer(buffer, channel);
-        // Copy input signal to delay buffer again
-        fillDelayBuffer(buffer, channel);
-        
+
     }
     writePosition +=  buffer.getNumSamples();
     writePosition %= delayBuffer.getNumSamples();
@@ -167,13 +163,15 @@ void FoxDelayAudioProcessor::fillDelayBuffer(AudioBuffer<float>& buffer, int cha
     }
     else
     {
-        auto spaceInDelayBuffer = delayBufferSize - writePosition;
-        delayBuffer.copyFrom(channel, writePosition, buffer.getWritePointer (channel), spaceInDelayBuffer);
-        auto remainingSpaceNeeded = bufferSize - spaceInDelayBuffer;
-        delayBuffer.copyFrom(channel, 0, buffer.getWritePointer (channel, spaceInDelayBuffer), remainingSpaceNeeded);
+        auto samplesAvailableAtBufferEnd = delayBufferSize - writePosition;
+        delayBuffer.copyFrom(channel, writePosition, buffer.getWritePointer (channel), samplesAvailableAtBufferEnd);
+        auto samplesNeededAtBufferStart = bufferSize - samplesAvailableAtBufferEnd;
+        delayBuffer.copyFrom(channel, 0, buffer.getWritePointer (channel, samplesAvailableAtBufferEnd), samplesNeededAtBufferStart);
     }
 
 }
+
+
 
 void FoxDelayAudioProcessor::applyDelayBuffer(AudioBuffer<float>& buffer, int channel)
 {
@@ -186,17 +184,30 @@ void FoxDelayAudioProcessor::applyDelayBuffer(AudioBuffer<float>& buffer, int ch
     {
         readPosition += delayBufferSize;
     }
+    
+    float dryGain = sqrt(1.0f - mixLevel);
+    float wetGain = sqrt(mixLevel);
 
+    buffer.applyGain(channel, 0, bufferSize, dryGain);
+    
     if(readPosition + bufferSize < delayBufferSize)
     {
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), bufferSize, feedbackLevel, feedbackLevel);
+        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), bufferSize, wetGain, wetGain);
+        delayBuffer.addFromWithRamp(channel, writePosition, delayBuffer.getReadPointer(channel, readPosition), bufferSize, feedbackLevel, feedbackLevel);
+
     }
     else
     {
-        auto delayBufferEndSize = delayBufferSize - readPosition;
-        auto delayBufferStartSize = bufferSize - delayBufferEndSize;
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), delayBufferEndSize, feedbackLevel, feedbackLevel);
-        buffer.addFromWithRamp(channel, delayBufferEndSize, delayBuffer.getReadPointer(channel, 0), delayBufferStartSize, feedbackLevel, feedbackLevel);
+        auto samplesAvailableAtBufferEnd = delayBufferSize - readPosition;
+        auto samplesNeededFromBufferStart = bufferSize - samplesAvailableAtBufferEnd;
+        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), samplesAvailableAtBufferEnd, wetGain, wetGain);
+        
+        delayBuffer.addFromWithRamp(channel, writePosition, delayBuffer.getReadPointer(channel, readPosition), samplesAvailableAtBufferEnd, feedbackLevel, feedbackLevel);
+        
+        buffer.addFromWithRamp(channel, samplesAvailableAtBufferEnd, delayBuffer.getReadPointer(channel, 0), samplesNeededFromBufferStart, wetGain, wetGain);
+        
+        delayBuffer.addFromWithRamp(channel, writePosition + samplesAvailableAtBufferEnd,  delayBuffer.getReadPointer(channel, 0), samplesNeededFromBufferStart, feedbackLevel, feedbackLevel);
+        
     }
 }
 
