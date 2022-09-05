@@ -11,6 +11,8 @@
             file="Source/PluginProcessor.h"/>
       <FILE id="MViYbQ" name="PluginEditor.cpp" compile="1" resource="0"
             file="Source/PluginEditor.cpp"/>
+      <FILE id="kA6GX4" name="DelayBuffer.cpp" compile="1" resource="0" file="Source/DelayBuffer.cpp"/>
+      <FILE id="jY608d" name="DelayBuffer.h" compile="0" resource="0" file="Source/DelayBuffer.h"/>
       <FILE id="EHqSni" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
     </GROUP>
   </MAINGROUP>

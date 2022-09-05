@@ -9,6 +9,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "DelayBuffer.h"
 
 //==============================================================================
 /**
@@ -62,8 +63,7 @@ public:
 private:
     void fillDelayBuffer(AudioBuffer<float>& buffer, int channel);
     void applyDelayBuffer(AudioBuffer<float>& buffer, int channel);
-    AudioBuffer<float> delayBuffer;
-    int writePosition { 0 };
+    FoxDelayBuffer delayBuffer;
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FoxDelayAudioProcessor)
 };

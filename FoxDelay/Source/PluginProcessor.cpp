@@ -8,6 +8,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "DelayBuffer.h"
 
 //==============================================================================
 FoxDelayAudioProcessor::FoxDelayAudioProcessor()
@@ -94,7 +95,7 @@ void FoxDelayAudioProcessor::changeProgramName (int index, const juce::String& n
 void FoxDelayAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     auto delayBufferSize = sampleRate * 2; // 2 seconds
-    delayBuffer.setSize(getTotalNumOutputChannels(), (int)delayBufferSize);
+    delayBuffer.setDelayBufferSize(getTotalNumOutputChannels(), (int)delayBufferSize, sampleRate);
     delayBuffer.clear();
 }
 
@@ -141,75 +142,29 @@ void FoxDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
         buffer.clear (i, 0, buffer.getNumSamples());
 
 
+    delayBuffer.setReadBufferSize(getTotalNumOutputChannels(), (int)buffer.getNumSamples());
+    
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
-        fillDelayBuffer(buffer, channel);
-        applyDelayBuffer(buffer, channel);
-
+        delayBuffer.addToBuffer(buffer, channel, 1.0f, true);
+        AudioBuffer<float> delaySignal = delayBuffer.readFromBuffer(channel, delayTimeInSeconds);
+        
+        float dryGain = sqrt(1.0f - mixLevel);
+        float wetGain = sqrt(mixLevel);
+        buffer.applyGain(channel, 0, buffer.getNumSamples(), dryGain);
+        buffer.addFromWithRamp(channel, 0, delaySignal.getReadPointer(channel), delaySignal.getNumSamples(), wetGain, wetGain);
+        
+        delayBuffer.addToBuffer(delaySignal, channel, feedbackLevel, false);
+        
+        
     }
-    writePosition +=  buffer.getNumSamples();
-    writePosition %= delayBuffer.getNumSamples();
-    
-}
-
-void FoxDelayAudioProcessor::fillDelayBuffer(AudioBuffer<float>& buffer, int channel)
-{
-    auto bufferSize = buffer.getNumSamples();
-    auto delayBufferSize = delayBuffer.getNumSamples();
-    
-    if (writePosition + bufferSize < delayBufferSize)
-    {
-        delayBuffer.copyFrom(channel, writePosition, buffer.getWritePointer (channel), bufferSize);
-    }
-    else
-    {
-        auto samplesAvailableAtBufferEnd = delayBufferSize - writePosition;
-        delayBuffer.copyFrom(channel, writePosition, buffer.getWritePointer (channel), samplesAvailableAtBufferEnd);
-        auto samplesNeededAtBufferStart = bufferSize - samplesAvailableAtBufferEnd;
-        delayBuffer.copyFrom(channel, 0, buffer.getWritePointer (channel, samplesAvailableAtBufferEnd), samplesNeededAtBufferStart);
-    }
+    delayBuffer.endCycle(buffer);
 
 }
 
 
 
-void FoxDelayAudioProcessor::applyDelayBuffer(AudioBuffer<float>& buffer, int channel)
-{
-    auto bufferSize = buffer.getNumSamples();
-    auto delayBufferSize = delayBuffer.getNumSamples();
-    
-    int delayLengthInSamples = getSampleRate() * delayTimeInSeconds;
-    auto readPosition = writePosition - delayLengthInSamples;
-    if (readPosition < 0)
-    {
-        readPosition += delayBufferSize;
-    }
-    
-    float dryGain = sqrt(1.0f - mixLevel);
-    float wetGain = sqrt(mixLevel);
 
-    buffer.applyGain(channel, 0, bufferSize, dryGain);
-    
-    if(readPosition + bufferSize < delayBufferSize)
-    {
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), bufferSize, wetGain, wetGain);
-        delayBuffer.addFromWithRamp(channel, writePosition, delayBuffer.getReadPointer(channel, readPosition), bufferSize, feedbackLevel, feedbackLevel);
-
-    }
-    else
-    {
-        auto samplesAvailableAtBufferEnd = delayBufferSize - readPosition;
-        auto samplesNeededFromBufferStart = bufferSize - samplesAvailableAtBufferEnd;
-        buffer.addFromWithRamp(channel, 0, delayBuffer.getReadPointer(channel, readPosition), samplesAvailableAtBufferEnd, wetGain, wetGain);
-        
-        delayBuffer.addFromWithRamp(channel, writePosition, delayBuffer.getReadPointer(channel, readPosition), samplesAvailableAtBufferEnd, feedbackLevel, feedbackLevel);
-        
-        buffer.addFromWithRamp(channel, samplesAvailableAtBufferEnd, delayBuffer.getReadPointer(channel, 0), samplesNeededFromBufferStart, wetGain, wetGain);
-        
-        delayBuffer.addFromWithRamp(channel, writePosition + samplesAvailableAtBufferEnd,  delayBuffer.getReadPointer(channel, 0), samplesNeededFromBufferStart, feedbackLevel, feedbackLevel);
-        
-    }
-}
 
 //==============================================================================
 bool FoxDelayAudioProcessor::hasEditor() const
