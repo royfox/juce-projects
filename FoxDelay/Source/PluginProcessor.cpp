@@ -94,7 +94,7 @@ void FoxDelayAudioProcessor::changeProgramName (int index, const juce::String& n
 //==============================================================================
 void FoxDelayAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    auto delayBufferSize = sampleRate * 2; // 2 seconds
+    auto delayBufferSize = sampleRate * 10; // 10 seconds
     delayBuffer.setDelayBufferSize(getTotalNumOutputChannels(), (int)delayBufferSize, sampleRate);
     delayBuffer.clear();
 }
@@ -134,28 +134,37 @@ bool FoxDelayAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 void FoxDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+    AudioPlayHead::CurrentPositionInfo currentPosition;
+    AudioPlayHead* playHead;
+    playHead = this->getPlayHead();
+    playHead->getCurrentPosition (currentPosition);
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-
     delayBuffer.setReadBufferSize(getTotalNumOutputChannels(), (int)buffer.getNumSamples());
+    
+    // TODO:
+    // Saturation
+    // Reverse/granular delay
+    // UI
+    // Stereo movement
+    
     
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
         delayBuffer.addToBuffer(buffer, channel, 1.0f, true);
+        float delayTimeInSeconds = (60.0f / currentPosition.bpm) * delayFraction * 4;
+        
         AudioBuffer<float> delaySignal = delayBuffer.readFromBuffer(channel, delayTimeInSeconds);
+        delayBuffer.addToBuffer(delaySignal, channel, feedbackLevel, false);
         
         float dryGain = sqrt(1.0f - mixLevel);
         float wetGain = sqrt(mixLevel);
         buffer.applyGain(channel, 0, buffer.getNumSamples(), dryGain);
         buffer.addFromWithRamp(channel, 0, delaySignal.getReadPointer(channel), delaySignal.getNumSamples(), wetGain, wetGain);
-        
-        delayBuffer.addToBuffer(delaySignal, channel, feedbackLevel, false);
-        
         
     }
     delayBuffer.endCycle(buffer);

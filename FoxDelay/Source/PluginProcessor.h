@@ -55,7 +55,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
     
     float mixLevel { 50.0 };
-    float delayTimeInSeconds { 0.5 };
+    float delayFraction { 0.25 };
     float feedbackLevel { 0.3 };
     
     

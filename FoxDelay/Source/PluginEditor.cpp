@@ -1,13 +1,7 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <cmath>
 
 //==============================================================================
 FoxDelayAudioProcessorEditor::FoxDelayAudioProcessorEditor (FoxDelayAudioProcessor& p)
@@ -15,16 +9,24 @@ FoxDelayAudioProcessorEditor::FoxDelayAudioProcessorEditor (FoxDelayAudioProcess
 {
 
     mixLevelSlider.setRange(0.0f, 100.f, 1.0f);
-    delayTimeSlider.setRange(0.01, 2.0f, 0.01f);
+    delayTimeSlider.setRange(-6, 0, 1);
     feedbackLevelSlider.setRange(0.0f, 100.f, 1.0f);
     
     mixLevelSlider.setValue(20.0f);
-    delayTimeSlider.setValue(0.5f);
+    delayTimeSlider.setValue(-2);
     feedbackLevelSlider.setValue(30.f);
     
     setUpSlider(mixLevelSlider, "%");
-    setUpSlider(delayTimeSlider, "s");
+    setUpSlider(delayTimeSlider, "");
     setUpSlider(feedbackLevelSlider, "%");
+    
+    delayTimeSlider.textFromValueFunction = [](double value)
+    {
+        float denominator = pow(2, -value);
+        return "1/" + juce::String(static_cast<int>(denominator));
+    };
+    delayTimeSlider.updateText();
+    
     
     setUpLabel(mixLevelLabel, mixLevelSlider, "Wet Level");
     setUpLabel(delayTimeLabel, delayTimeSlider, "Delay Time");
@@ -73,7 +75,8 @@ void FoxDelayAudioProcessorEditor::sliderValueChanged(Slider* slider)
     }
     else if (slider == &delayTimeSlider)
     {
-        audioProcessor.delayTimeInSeconds = delayTimeSlider.getValue();
+        float denominator = pow(2, -delayTimeSlider.getValue());
+        audioProcessor.delayFraction = 1 / denominator;
     }
 }
 
