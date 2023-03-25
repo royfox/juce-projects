@@ -66,16 +66,19 @@ void FoxDelayBuffer::endCycle(AudioBuffer<float>& buffer)
 
 AudioBuffer<float> FoxDelayBuffer::readFromBuffer(int channel, float delayTimeInSeconds)
 {
-    auto readBufferSize = readBuffer.getNumSamples();
     auto delayBufferSize = delayBuffer.getNumSamples();
-    
     auto delayLengthInSamples = delaySampleRate * delayTimeInSeconds;
     auto readPosition = writePosition - delayLengthInSamples;
     if (readPosition < 0)
     {
         readPosition += delayBufferSize;
     }
-    
+    return readSectionFromBuffer(channel, readPosition, delayLengthInSamples);
+}
+
+AudioBuffer<float> FoxDelayBuffer::readSectionFromBuffer(int channel, int readPosition, int delayLengthInSamples) {
+    auto readBufferSize = readBuffer.getNumSamples();
+    auto delayBufferSize = delayBuffer.getNumSamples();
     if(readPosition + readBufferSize < delayBufferSize)
     {
         readBuffer.copyFrom(channel, 0, delayBuffer.getReadPointer(channel, readPosition), readBufferSize);
@@ -90,4 +93,29 @@ AudioBuffer<float> FoxDelayBuffer::readFromBuffer(int channel, float delayTimeIn
         
     }
     return readBuffer;
+}
+
+AudioBuffer<float> FoxDelayBuffer::readFromBufferBackwards(int channel, float delayTimeInSeconds, int loopSamplePosition)
+{
+    int delayLengthInSamples = delaySampleRate * delayTimeInSeconds;
+    auto readBufferSize = readBuffer.getNumSamples();
+    auto delayBufferSize = delayBuffer.getNumSamples();
+    
+    auto reverseReadPosition = reversePosition - loopSamplePosition;
+    if (reverseReadPosition < 0) {
+        reverseReadPosition += delayBufferSize;
+    }
+    auto buffer = readSectionFromBuffer(channel, reverseReadPosition, delayLengthInSamples);
+    buffer.reverse(channel, 0, readBufferSize);
+    return buffer;
+
+}
+
+void FoxDelayBuffer::advanceReversePosition(int samples)
+{
+    auto delayBufferSize = delayBuffer.getNumSamples();
+    reversePosition += samples;
+    if (reversePosition > delayBufferSize) {
+        reversePosition = reversePosition % delayBufferSize;
+    }
 }

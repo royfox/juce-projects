@@ -57,7 +57,8 @@ public:
     float mixLevel { 50.0 };
     float delayFraction { 0.25 };
     float feedbackLevel { 0.3 };
-    
+    float delayCrossFadeInMilliseconds { 50 };
+    int loopSamplePosition { 0 };
     
 
 private:

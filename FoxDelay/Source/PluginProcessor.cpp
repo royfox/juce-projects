@@ -137,7 +137,7 @@ void FoxDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     AudioPlayHead::CurrentPositionInfo currentPosition;
     AudioPlayHead* playHead;
     playHead = this->getPlayHead();
-    playHead->getCurrentPosition (currentPosition);
+    if (playHead) playHead->getCurrentPosition (currentPosition);
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
@@ -146,26 +146,28 @@ void FoxDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
 
     delayBuffer.setReadBufferSize(getTotalNumOutputChannels(), (int)buffer.getNumSamples());
     
-    // TODO:
-    // Saturation
-    // Reverse/granular delay
-    // UI
-    // Stereo movement
-    
-    
+    float delayTimeInSeconds = (60.0f / currentPosition.bpm) * delayFraction * 4;
     for (int channel = 0; channel < totalNumInputChannels; ++channel)
     {
         delayBuffer.addToBuffer(buffer, channel, 1.0f, true);
-        float delayTimeInSeconds = (60.0f / currentPosition.bpm) * delayFraction * 4;
         
+        AudioBuffer<float> reverseDelaySignal = delayBuffer.readFromBufferBackwards(channel, delayTimeInSeconds, loopSamplePosition);
         AudioBuffer<float> delaySignal = delayBuffer.readFromBuffer(channel, delayTimeInSeconds);
         delayBuffer.addToBuffer(delaySignal, channel, feedbackLevel, false);
+        delayBuffer.addToBuffer(reverseDelaySignal, channel, feedbackLevel, false);
         
         float dryGain = sqrt(1.0f - mixLevel);
         float wetGain = sqrt(mixLevel);
         buffer.applyGain(channel, 0, buffer.getNumSamples(), dryGain);
-        buffer.addFromWithRamp(channel, 0, delaySignal.getReadPointer(channel), delaySignal.getNumSamples(), wetGain, wetGain);
         
+        buffer.addFromWithRamp(channel, 0, reverseDelaySignal.getReadPointer(channel), reverseDelaySignal.getNumSamples(), wetGain, wetGain);
+    }
+    
+    int delayLengthInSamples = getSampleRate() * delayTimeInSeconds;
+    loopSamplePosition = (loopSamplePosition + (int)buffer.getNumSamples());
+    if (loopSamplePosition > delayLengthInSamples) {
+        loopSamplePosition = loopSamplePosition % delayLengthInSamples;
+        delayBuffer.advanceReversePosition(delayLengthInSamples);
     }
     delayBuffer.endCycle(buffer);
 
